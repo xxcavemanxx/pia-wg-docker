@@ -1,0 +1,37 @@
+version: "2.4"
+services:
+    wireguard_client:
+        image: linuxserver/wireguard:latest
+        container_name: pia_wg_client
+        cap_add:
+            - NET_ADMIN
+            - SYS_MODULE
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/London
+            - PIA_USER=${PIA_USER}
+            - PIA_PASS=${PIA_PASS}
+            - VPN_PROTOCOL=wireguard
+            - AUTOCONNECT=true
+        volumes:
+            - ./data:/config
+            - /lib/modules:/lib/modules
+        restart: always
+        sysctls:
+            - net.ipv4.conf.all.src_valid_mark=1
+            - net.ipv6.conf.all.disable_ipv6=1
+            - net.ipv6.conf.default.disable_ipv6=1
+    qbittorrent:
+        image: linuxserver/qbittorrent:latest
+        container_name: qbittorrent
+        environment:
+            - PUID=1000
+          - PGID=1000
+          - TZ=Europe/London
+          - WEBUI_PORT=8080
+        volumes:
+            - ./data:/config
+          - /mnt/downloads:/downloads
+        restart: always
+        network_mode: service:wireguard_client

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cd /config
+./get_token.sh
+./get_region.sh

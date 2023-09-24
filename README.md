@@ -1,3 +1,16 @@
+# Changes to Original Repository
+
+This was taken from https://github.com/pia-foss/manual-connections and has been modified to use PIA with WireGuard in a Docker container.
+This was done using the guide here: https://spad.uk/wireguard-as-a-vpn-client-in-docker-using-pia/
+
+# Important
+
+You must update /data/custom-cont-init.d/00-check-pia-status and set WAN_IP to your public WAN IP address.
+
+# Note
+
+The remainder of this file is the README from the original repository.
+
 # Manual PIA VPN Connections
 
 This repository contains documentation on how to create native WireGuard and OpenVPN connections, and also on how to enable Port Forwarding in case you require this feature. You will find a lot of information below. However if you prefer quick test, here is the __TL/DR__:

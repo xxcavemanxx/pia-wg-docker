@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+### https://spad.uk/wireguard-as-a-vpn-client-in-docker-using-pia/ ###
+#
 # Copyright (C) 2020 Private Internet Access, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -51,7 +53,7 @@ fi
 
 : "${PIA_CONNECT=true}"
 
-DEFAULT_PIA_CONF_PATH=/etc/wireguard/pia.conf
+DEFAULT_PIA_CONF_PATH=/config/wg0.conf
 : "${PIA_CONF_PATH:=$DEFAULT_PIA_CONF_PATH}"
 
 # PIA currently does not support IPv6. In order to be sure your VPN
@@ -156,6 +158,8 @@ echo "
 Address = $(echo "$wireguard_json" | jq -r '.peer_ip')
 PrivateKey = $privKey
 $dnsSettingForVPN
+PostUp = DROUTE=\$(ip route | grep default | awk '{print \$3}'); HOMENET=192.168.0.0/16; HOMENET2=10.0.0.0/8; HOMENET3=172.16.0.0/12; ip route add \$HOMENET3 via \$DROUTE;ip route add \$HOMENET2 via \$DROUTE; ip route add \$HOMENET via \$DROUTE;iptables -I OUTPUT -d \$HOMENET -j ACCEPT;iptables -A OUTPUT -d \$HOMENET2 -j ACCEPT; iptables -A OUTPUT -d \$HOMENET3 -j ACCEPT;  iptables -A OUTPUT ! -o %i -m mark ! --mark \$(wg show %i fwmark) -m addrtype ! --dst-type LOCAL -j REJECT
+PreDown = HOMENET=192.168.0.0/16; HOMENET2=10.0.0.0/8; HOMENET3=172.16.0.0/12; ip route delete \$HOMENET; ip route delete \$HOMENET2; ip route delete \$HOMENET3; iptables -D OUTPUT ! -o %i -m mark ! --mark \$(wg show %i fwmark) -m addrtype ! --dst-type LOCAL -j REJECT; iptables -D OUTPUT -d \$HOMENET -j ACCEPT; iptables -D OUTPUT -d \$HOMENET2 -j ACCEPT; iptables -D OUTPUT -d \$HOMENET3 -j ACCEPT
 [Peer]
 PersistentKeepalive = 25
 PublicKey = $(echo "$wireguard_json" | jq -r '.server_key')
@@ -163,57 +167,3 @@ AllowedIPs = 0.0.0.0/0
 Endpoint = ${WG_SERVER_IP}:$(echo "$wireguard_json" | jq -r '.server_port')
 " > ${PIA_CONF_PATH} || exit 1
 echo -e "${green}OK!${nc}"
-
-
-if [[ $PIA_CONNECT == "true" ]]; then
-  # Start the WireGuard interface.
-  # If something failed, stop this script.
-  # If you get DNS errors because you miss some packages,
-  # just hardcode /etc/resolv.conf to "nameserver 10.0.0.242".
-  echo
-  echo "Trying to create the wireguard interface..."
-  wg-quick up pia || exit 1
-  echo
-  echo -e "${green}The WireGuard interface got created.${nc}
-
-  At this point, internet should work via VPN.
-
-  To disconnect the VPN, run:
-
-  --> ${green}wg-quick down pia${nc} <--
-  "
-
-  # This section will stop the script if PIA_PF is not set to "true".
-  if [[ $PIA_PF != "true" ]]; then
-    echo "If you want to also enable port forwarding, you can start the script:"
-    echo -e "$ ${green}PIA_TOKEN=$PIA_TOKEN" \
-      "PF_GATEWAY=$WG_SERVER_IP" \
-      "PF_HOSTNAME=$WG_HOSTNAME" \
-      "./port_forwarding.sh${nc}"
-    echo
-    echo "The location used must be port forwarding enabled, or this will fail."
-    echo "Calling the ./get_region script with PIA_PF=true will provide a filtered list."
-    exit 1
-  fi
-
-  echo -ne "This script got started with ${green}PIA_PF=true${nc}.
-
-  Starting port forwarding in "
-  for i in {5..1}; do
-    echo -n "$i..."
-    sleep 1
-  done
-  echo
-  echo
-
-  echo -e "Starting procedure to enable port forwarding by running the following command:
-  $ ${green}PIA_TOKEN=$PIA_TOKEN \\
-    PF_GATEWAY=$WG_SERVER_IP \\
-    PF_HOSTNAME=$WG_HOSTNAME \\
-    ./port_forwarding.sh${nc}"
-
-  PIA_TOKEN=$PIA_TOKEN \
-    PF_GATEWAY=$WG_SERVER_IP \
-    PF_HOSTNAME=$WG_HOSTNAME \
-    ./port_forwarding.sh
-fi
